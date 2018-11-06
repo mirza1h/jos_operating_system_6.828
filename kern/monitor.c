@@ -58,17 +58,18 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	uint32_t * ebp = (uint32_t * ) read_ebp();
-  if (ebp == 0)
-    cprintf("No more outstanding stack frames!\n");
+  struct Eipdebuginfo info;
+  uint32_t * ebp = (uint32_t * ) read_ebp();
   while( ebp != 0 ){
     cprintf("ebp %x  eip %x  args %08x %08x %08x %08x %08x\n",ebp,*(ebp + 1),*(ebp + 2),*(ebp + 3),*(ebp + 4),*(ebp + 5),*(ebp + 6));
+    if(debuginfo_eip( *(ebp + 1), &info) == 0){
+      cprintf("       %s:%d: %.*s\n",info.eip_file,info.eip_line,info.eip_fn_namelen,info.eip_fn_name);
+    
+    }
     ebp = (uint32_t *) (*(ebp));
   }
   return 0;
 }
-
-
 
 /***** Kernel monitor command interpreter *****/
 
