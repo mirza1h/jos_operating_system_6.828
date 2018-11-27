@@ -96,14 +96,21 @@ boot_alloc(uint32_t n)
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
 	}
-
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+  if (n == 0)
+    return nextfree;
+  if (npages == 0)
+    panic("No free pages left!\n");
+  if (n > 0){
+    result = nextfree;
+    nextfree = ROUNDUP(nextfree + n, PGSIZE);
+  }
+  
+	return result;
 }
 
 // Set up a two-level page table:
@@ -125,7 +132,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	//panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -148,9 +155,9 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
-
-	//////////////////////////////////////////////////////////////////////
+  pages = boot_alloc(npages * sizeof(struct PageInfo));
+  memset(pages, 0, sizeof(pages));
+  //////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
 	// memory management will go through the page_* functions. In
@@ -172,7 +179,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-
+  boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -184,7 +191,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
-
+  boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -193,7 +200,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-
+  boot_map_region(kern_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0x0, PTE_W | PTE_P);
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -252,11 +259,20 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
+  size_t first_IO_page = PGNUM(IOPHYSMEM);
+  size_t last_IO_page = PGNUM(EXTPHYSMEM);
+  uint32_t kernel_page = (uint32_t)(boot_alloc(0) - KERNBASE)/PGSIZE;
+  // Start from 1 to skip the first physical page.
+  pages[0].pp_ref = 1;
+	for (i = 1; i < npages; i++) {
+    if(i >= first_IO_page && i<= last_IO_page)
+      continue;
+		if(i < npages_basemem || i >= kernel_page){
+      pages[i].pp_ref = 0;
+		  pages[i].pp_link = page_free_list;
+		  page_free_list = &pages[i];
+    }
+  }
 }
 
 //
