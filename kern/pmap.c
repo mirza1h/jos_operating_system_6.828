@@ -378,8 +378,11 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
   uintptr_t max = va + size;
+	uint32_t last_page_addr = 4294963200LL;
   for(;va < max;){
     pte_t * pte = pgdir_walk(pgdir, (const void *)va, 1);
+		if (va == last_page_addr)
+			break;
     *pte = pa | perm | PTE_P;
     pa+= PGSIZE;
     va+= PGSIZE;
