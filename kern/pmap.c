@@ -308,7 +308,7 @@ void
 page_free(struct PageInfo *pp)
 {
   if(pp->pp_ref != 0 || pp->pp_link != NULL)
-    panic("page_free!\n");
+    panic("page_free()\n");
   pp->pp_link = page_free_list;
   page_free_list = pp;
 }
@@ -349,8 +349,18 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
+  if(!(pgdir[PDX(va)] & PTE_P)){
+    if(create != 1)
+      return NULL;
+    struct PageInfo * page = page_alloc(1);
+    if(page == NULL)
+      return NULL;
+    page->pp_ref+=1;
+    memset(page, 0, PGSIZE);
+    pgdir[PDX(va)] = (page2pa(page) | PTE_W | PTE_U | PTE_P);
+  }
+  pte_t * pte = (pte_t *) (KADDR(PTE_ADDR(pgdir[PDX(va)])));
+  return &pte[PTX(va)];
 }
 
 //
@@ -367,7 +377,13 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+  uintptr_t max = va + size;
+  for(;va < max;){
+    pte_t * pte = pgdir_walk(pgdir, (const void *)va, 1);
+    *pte = pa | perm | PTE_P;
+    pa+= PGSIZE;
+    va+= PGSIZE;
+  }
 }
 
 //
