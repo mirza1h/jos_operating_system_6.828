@@ -376,16 +376,12 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // Hint: the TA solution uses pgdir_walk
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
-{
-  uintptr_t max = va + size;
-	uint32_t last_page_addr = 4294963200LL;
-  for(;va < max;){
-    pte_t * pte = pgdir_walk(pgdir, (const void *)va, 1);
-		if (va == last_page_addr)
-			break;
-    *pte = pa | perm | PTE_P;
-    pa+= PGSIZE;
-    va+= PGSIZE;
+{	
+	pte_t * pte;
+	size_t i = 0;
+  for(;i < size; i += PGSIZE){
+    pte = pgdir_walk(pgdir, (const void *)(va + i), 1);
+    *pte = ((pa + i) | perm | PTE_P);
   }
 }
 
@@ -417,7 +413,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	pte_t* pte = pgdir_walk(pgdir, va, 1);
+	pte_t * pte = pgdir_walk(pgdir, va, 1);
   if(pte == NULL )  
 		return -E_NO_MEM;
   ++pp->pp_ref;
@@ -441,7 +437,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	pte_t *pte = pgdir_walk(pgdir, va, false);
+	pte_t * pte = pgdir_walk(pgdir, va, false);
 	if (pte == NULL)
 		return NULL;
 	if (!(*pte & PTE_P))
@@ -471,7 +467,7 @@ page_remove(pde_t *pgdir, void *va)
 {
 	pte_t * pte;
   struct PageInfo * page = page_lookup(pgdir, va, &pte);
-  if(page != NULL ){
+  if(page != NULL){
     page_decref(page);
     *pte = 0;
     tlb_invalidate(pgdir,va);
