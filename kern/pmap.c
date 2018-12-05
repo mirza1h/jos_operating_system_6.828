@@ -131,9 +131,6 @@ mem_init(void)
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
 
-	// Remove this line when you're ready to test this function.
-	//panic("mem_init: This function is not finished\n");
-
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
@@ -259,19 +256,18 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-  size_t first_IO_page = PGNUM(IOPHYSMEM);
-  size_t last_IO_page = PGNUM(EXTPHYSMEM);
   uint32_t kernel_page = (uint32_t)(boot_alloc(0) - KERNBASE)/PGSIZE;
   // Start from 1 to skip the first physical page.
   pages[0].pp_ref = 1;
-	for (i = 1; i < npages; i++) {
-    if(i >= first_IO_page && i<= last_IO_page)
-      continue;
-		if(i < npages_basemem || i >= kernel_page){
-      pages[i].pp_ref = 0;
-		  pages[i].pp_link = page_free_list;
-		  page_free_list = &pages[i];
-    }
+	for (i = 1; i < npages_basemem; i++) {
+    pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+  }
+  for (i = kernel_page; i < npages; ++i) {
+    pages[i].pp_ref = 0;
+    pages[i].pp_link = page_free_list;
+    page_free_list = &pages[i];
   }
 }
 
@@ -290,12 +286,12 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-  if( page_free_list == NULL)
+  if(page_free_list == NULL)
     return NULL;
 	struct PageInfo * page =  page_free_list;
   page_free_list = page->pp_link;
   page->pp_link = NULL;
-  if( alloc_flags & ALLOC_ZERO)
+  if(alloc_flags & ALLOC_ZERO)
     memset(page2kva(page), '\0', PGSIZE);
   return page;
 }
@@ -349,18 +345,20 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	pde_t *pde = &pgdir[PDX(va)];
-	if(!(*pde & PTE_P) && create != 1)
+  size_t pdidx = PDX(va);
+  pde_t *pde = &pgdir[pdidx];
+	if((*pde & PTE_P) == 0 && create != 1)
 		return NULL;
-	if(!(*pde & PTE_P) && create == 1){
+	if((*pde & PTE_P) == 0 && create == 1){
 		struct PageInfo * page = page_alloc(1);
 		if(page == NULL)
 			return NULL;
 		page->pp_ref+=1;
-		*pde = (page2pa(page) | PTE_U | PTE_W | PTE_P);
+		pgdir[pdidx] = (page2pa(page) | PTE_U | PTE_W | PTE_P);
 	}
+  size_t ptidx = PTX(va);
 	pte_t *pte = KADDR(PTE_ADDR(*pde));
-	return &pte[PTX(va)];
+  return &pte[ptidx];
 }
 
 //
