@@ -68,7 +68,7 @@ static void check_kern_pgdir(void);
 static physaddr_t check_va2pa(pde_t *pgdir, uintptr_t va);
 static void check_page(void);
 static void check_page_installed_pgdir(void);
-
+void used_locations(void);
 // This simple physical memory allocator is used only while JOS is setting
 // up its virtual memory system.  page_alloc() is the real allocator.
 //
@@ -129,7 +129,7 @@ mem_init(void)
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
-
+  cprintf("%x ", boot_alloc(0));
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
@@ -217,11 +217,21 @@ mem_init(void)
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
-
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+  used_locations();
 }
 
+void used_locations() {
+  size_t count = 0;
+  size_t length = npages;
+  for(size_t i = 0; i < length; ++i) {
+    if(pages[i].pp_ref != 0)
+      ++count;
+  }
+  cprintf("Number of used locations is %d\n", count);
+  return;
+}
 // --------------------------------------------------------------
 // Tracking of physical pages.
 // The 'pages' array has one 'struct PageInfo' entry per physical page.
@@ -356,8 +366,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		pgdir[pdidx] = (page2pa(page) | PTE_U | PTE_W | PTE_P);
 	}
   size_t ptidx = PTX(va);
-	pte_t *pte = KADDR(PTE_ADDR(*pde));
-  return &pte[ptidx];
+	pte_t *pt = KADDR(PTE_ADDR(*pde));
+  return &pt[ptidx];
 }
 
 //
@@ -382,7 +392,6 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
     *pte = ((pa + i) | perm | PTE_P);
   }
 }
-
 //
 // Map the physical page 'pp' at virtual address 'va'.
 // The permissions (the low 12 bits) of the page table entry
@@ -416,8 +425,10 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
   if(pte == NULL)  
 		return -E_NO_MEM;
   ++pp->pp_ref;
-  if(*pte & PTE_P)
-    page_remove(pgdir,va);
+  if(*pte & PTE_P){
+    page_remove(pgdir, va);
+    tlb_invalidate(pgdir, va);
+  }
   *pte = (paddress | perm | PTE_P);
   return 0;
 }
@@ -437,11 +448,11 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	pte_t * pte = pgdir_walk(pgdir, va, false);
-	if (pte == NULL)
+	if(pte == NULL)
 		return NULL;
-	if (!(*pte & PTE_P))
+	if(!(*pte & PTE_P))
 		return NULL;
-	if (pte_store)
+	if(pte_store)
 		*pte_store = pte;
 	return pa2page(PTE_ADDR(*pte));
 }
