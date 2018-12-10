@@ -151,17 +151,15 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-<<<<<<< HEAD
-
+  pages = (struct PageInfo *) (boot_alloc(npages * sizeof(struct PageInfo)));
+  memset(pages, 0, sizeof(pages));
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
-
+  envs = (struct Env *) (boot_alloc(NENV * sizeof(struct Env)));
 	//////////////////////////////////////////////////////////////////////
-=======
   //////////////////////////////////////////////////////////////////////
->>>>>>> lab2
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
 	// memory management will go through the page_* functions. In
@@ -191,7 +189,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
-
+  boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U | PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -215,7 +213,6 @@ mem_init(void)
   boot_map_region(kern_pgdir, KERNBASE, ROUNDUP(0xffffffff - KERNBASE, PGSIZE) , 0x0, PTE_W | PTE_P);
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
-
 	// Switch from the minimal entry page directory to the full kern_pgdir
 	// page table we just created.	Our instruction pointer should be
 	// somewhere between KERNBASE and KERNBASE+4MB right now, which is
