@@ -353,12 +353,12 @@ load_icode(struct Env *e, uint8_t *binary)
   struct Proghdr * ph = (struct Proghdr *) ((uint8_t *)elfhdr + elfhdr->e_phoff);
   struct Proghdr * eph = ph + elfhdr->e_phnum;
   for(;ph < eph; ++ph){
-  if(ph->p_type != ELF_PROG_LOAD)
-    panic("load_icode()!");
-   region_alloc(e, (void *)ph->p_va,ph->p_memsz);
-   memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-   if(ph->p_memsz > ph->p_filesz)
-     memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+    if(ph->p_type != ELF_PROG_LOAD)
+      panic("load_icode()!");
+    region_alloc(e, (void *)ph->p_va,ph->p_memsz);
+    memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+    if(ph->p_memsz > ph->p_filesz)
+      memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
   }
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
@@ -377,6 +377,11 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+  struct Env * e;
+  if(env_alloc(&e, 0) != 0)
+    panic("env_create()!");
+  load_icode(e, binary);
+  e->env_type = type; 
 }
 
 //
