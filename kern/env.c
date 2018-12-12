@@ -352,7 +352,6 @@ load_icode(struct Env *e, uint8_t *binary)
   struct Proghdr * ph = (struct Proghdr *) ((uint8_t *)elfhdr + elfhdr->e_phoff);
   struct Proghdr * eph = ph + elfhdr->e_phnum;
   for(;ph < eph; ++ph){
-    cprintf("TYPE:%d\n",ph->p_type);
     if(ph->p_type == ELF_PROG_LOAD && ph->p_filesz <= ph->p_memsz) {
       region_alloc(e, (void *)ph->p_va,ph->p_memsz);
       memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
@@ -497,7 +496,13 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-
-	panic("env_run not yet implemented");
+	//panic("env_run not yet implemented");
+    if (curenv && curenv->env_status == ENV_RUNNING)
+      curenv->env_status = ENV_RUNNABLE;
+    curenv = e;
+    curenv->env_status = ENV_RUNNING;
+    curenv->env_runs++;
+    lcr3(PADDR(curenv->env_pgdir));
+    env_pop_tf(&e->env_tf);
 }
 
