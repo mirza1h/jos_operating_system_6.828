@@ -274,16 +274,15 @@ region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
-	va = ROUNDDOWN(va, PGSIZE);
-  size_t end = ROUNDUP((uintptr_t)(va) + len, PGSIZE);
+	void * start = (void *)ROUNDDOWN(va, PGSIZE);
+  void * end = (void *)ROUNDUP((uintptr_t)(va) + len, PGSIZE);
   struct PageInfo * page;
-  size_t i = 0;
-  for(; i < end; i+=PGSIZE) {
+  while(start < end) {
     page = page_alloc(0);
     if(page == NULL)
       panic("No memory!");
-    page_insert(e->env_pgdir, page, (void *)(va + i), PTE_U | PTE_P | PTE_W);
-    page->pp_ref++;
+    page_insert(e->env_pgdir, page, (void *)start, PTE_U | PTE_P | PTE_W);
+    start+=PGSIZE;
   }
   // Hint: It is easier to use region_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
@@ -353,12 +352,12 @@ load_icode(struct Env *e, uint8_t *binary)
   struct Proghdr * ph = (struct Proghdr *) ((uint8_t *)elfhdr + elfhdr->e_phoff);
   struct Proghdr * eph = ph + elfhdr->e_phnum;
   for(;ph < eph; ++ph){
-    if(ph->p_type != ELF_PROG_LOAD)
-      panic("load_icode()!");
-    region_alloc(e, (void *)ph->p_va,ph->p_memsz);
-    memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-    if(ph->p_memsz > ph->p_filesz)
+    cprintf("TYPE:%d\n",ph->p_type);
+    if(ph->p_type == ELF_PROG_LOAD && ph->p_filesz <= ph->p_memsz) {
+      region_alloc(e, (void *)ph->p_va,ph->p_memsz);
+      memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
       memset((void *)ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
+    }
   }
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
