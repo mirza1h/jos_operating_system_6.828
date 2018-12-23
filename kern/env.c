@@ -116,9 +116,9 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-  	size_t length = sizeof(envs)/sizeof(envs[0]);
-    size_t i = 0;	
-  for(size_t i = 0; i < length; ++i){
+  size_t length = sizeof(envs)/sizeof(envs[0]);
+  size_t i = 0;	
+  for(; i < length; ++i){
     		envs[i].env_id = 0;
     		envs[i].env_link = &envs[i + 1];
   }
@@ -278,7 +278,7 @@ region_alloc(struct Env *e, void *va, size_t len)
   void * end = (void *)ROUNDUP((uintptr_t)(va) + len, PGSIZE);
   struct PageInfo * page;
   while(start < end) {
-    page = page_alloc(0);
+    page = page_alloc(ALLOC_ZERO);
     if(page == NULL)
       panic("No memory!");
     page_insert(e->env_pgdir, page, (void *)start, PTE_U | PTE_P | PTE_W);
@@ -351,7 +351,7 @@ load_icode(struct Env *e, uint8_t *binary)
   e->env_tf.tf_eip = elfhdr->e_entry;
   struct Proghdr * ph = (struct Proghdr *) ((uint8_t *)elfhdr + elfhdr->e_phoff);
   struct Proghdr * eph = ph + elfhdr->e_phnum;
-  for(;ph < eph; ++ph){
+  for(;ph < eph; ++ph) {
     if(ph->p_type == ELF_PROG_LOAD && ph->p_filesz <= ph->p_memsz) {
       region_alloc(e, (void *)ph->p_va,ph->p_memsz);
       memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
@@ -497,7 +497,7 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 	//panic("env_run not yet implemented");
-    if (curenv && curenv->env_status == ENV_RUNNING)
+    if (curenv != NULL && curenv->env_status == ENV_RUNNING)
       curenv->env_status = ENV_RUNNABLE;
     curenv = e;
     curenv->env_status = ENV_RUNNING;
