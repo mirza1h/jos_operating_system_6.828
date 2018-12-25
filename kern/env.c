@@ -118,9 +118,9 @@ env_init(void)
 	// LAB 3: Your code here.
   size_t length = sizeof(envs)/sizeof(envs[0]);
   size_t i = 0;	
-  for(; i < length; ++i){
-    		envs[i].env_id = 0;
-    		envs[i].env_link = &envs[i + 1];
+  for(; i < length; ++i) {
+    envs[i].env_id = 0;
+    envs[i].env_link = &envs[i + 1];
   }
 	envs[i - 1].env_link = NULL;
 	env_free_list = &envs[0];
@@ -189,8 +189,8 @@ env_setup_vm(struct Env *e)
   	p->pp_ref++;
   	e->env_pgdir = page2kva(p);
   	i = PDX(UTOP);
-  	for(;i < 1024; ++i){
-    		e->env_pgdir[i] = kern_pgdir[i];  
+  	for(;i < 1024; ++i) {
+    	e->env_pgdir[i] = kern_pgdir[i];  
   	}
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -282,7 +282,7 @@ region_alloc(struct Env *e, void *va, size_t len)
     if(page == NULL)
       panic("No memory!");
     page_insert(e->env_pgdir, page, (void *)start, PTE_U | PTE_P | PTE_W);
-    start+=PGSIZE;
+    start+= PGSIZE;
   }
   // Hint: It is easier to use region_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
@@ -379,7 +379,8 @@ env_create(uint8_t *binary, enum EnvType type)
   if(env_alloc(&e, 0) != 0)
     panic("env_create()!");
   load_icode(e, binary);
-  e->env_type = type; 
+  e->env_type = type;
+	e->env_parent_id = 0; 
 }
 
 //
