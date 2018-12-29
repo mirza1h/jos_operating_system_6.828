@@ -118,7 +118,6 @@ sys_env_set_status(envid_t envid, int status)
 		return -E_INVAL;
 	e->env_status = status;
 	return 0;
-
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -170,7 +169,8 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_INVAL;
 	if((perm & ~PTE_SYSCALL) != 0)
 		return -E_INVAL;
-	if((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0)
+	uint32_t align = ROUNDUP((uint32_t)va, PGSIZE);
+	if((uint32_t)va >= UTOP || (uint32_t)va != align)
 		return -E_INVAL;
 	struct PageInfo * page = page_alloc(ALLOC_ZERO);
 	if(!page)
@@ -213,9 +213,11 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct Env * srcenv,* dstenv;
 	if(envid2env(srcenvid, &srcenv,1) < 0 || envid2env(dstenvid, &dstenv,1) < 0)
 		return -E_BAD_ENV;
-	if((uint32_t)srcva >= UTOP || (uint32_t)srcva % PGSIZE != 0)
+	uint32_t align = ROUNDUP((uint32_t)srcva, PGSIZE);
+	if((uint32_t)srcva >= UTOP || (uint32_t)srcva != align)
 		return -E_INVAL;
-	if((uint32_t)dstva >= UTOP || (uint32_t)dstva % PGSIZE != 0)
+	align = ROUNDUP((uint32_t)dstva, PGSIZE);
+	if((uint32_t)dstva >= UTOP || (uint32_t)dstva != align)
 		return -E_INVAL;
 	if((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P))
 		return -E_INVAL;
@@ -252,7 +254,8 @@ sys_page_unmap(envid_t envid, void *va)
 	struct Env * e;
 	if(envid2env(envid, &e, 1) < 0)
 		return -E_BAD_ENV;
-	if((uint32_t)va >= UTOP || (uint32_t)va % PGSIZE != 0)
+	uint32_t align = ROUNDUP((uint32_t)va, PGSIZE);
+	if((uint32_t)va >= UTOP || (uint32_t)va != align)
 		return -E_INVAL;
 	page_remove(e->env_pgdir, va);
 	return 0;
