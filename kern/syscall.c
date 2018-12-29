@@ -104,7 +104,13 @@ sys_env_set_status(envid_t envid, int status)
 	// envid's status.
 
 	// LAB 4: Your code here.
-	panic("sys_env_set_status not implemented");
+	struct Env * e;
+	if(envid2env(envid, &e, 1) < 0)
+		return -E_BAD_ENV;
+	if(status != ENV_NOT_RUNNABLE && status != ENV_RUNNABLE)
+		return -E_INVAL;
+	e->env_status = status;
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -149,7 +155,24 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	//   allocated!
 
 	// LAB 4: Your code here.
-	panic("sys_page_alloc not implemented");
+	struct Env * e;
+	if(envid2env(envid, &e, 1) < 0)
+		return -E_BAD_ENV;
+	if((perm & PTE_U & PTE_P) != PTE_U | PTE_P)
+		return -E_INVAL;
+	if((perm & ~PTE_SYSCALL) != 0)
+		return -E_INVAL;
+	void * align = ROUNDUP(va, PGSIZE);
+	if(va >= UTOP || align != va)
+		return -E_INVAL;
+	struct PageInfo * page = page_alloc(ALLOC_ZERO);
+	if(!page)
+		return -E_NO_MEM;
+	if(page_insert(e->env_pgdir, page, va, perm) < 0) {
+		page_free(page);
+		return -E_NO_MEM;
+	}
+	return 0;
 }
 
 // Map the page of memory at 'srcva' in srcenvid's address space
