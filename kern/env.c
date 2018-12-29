@@ -119,10 +119,10 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-  size_t length = sizeof(envs)/sizeof(envs[0]);
   size_t i = 0;	
-  for(; i < length; ++i) {
+  for(; i < NENV; ++i) {
     envs[i].env_id = 0;
+		envs[i].env_status = ENV_FREE;
     envs[i].env_link = &envs[i + 1];
   }
 	envs[i - 1].env_link = NULL;
@@ -530,6 +530,7 @@ env_run(struct Env *e)
     curenv->env_status = ENV_RUNNING;
     curenv->env_runs++;
     lcr3(PADDR(curenv->env_pgdir));
+		unlock_kernel();
     env_pop_tf(&e->env_tf);
 }
 
