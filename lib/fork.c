@@ -25,7 +25,10 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-
+	if(!(err & FEC_WR))
+		panic("Not a write!");
+	if(!(uvpt[PGNUM(addr)] & PTE_COW))
+		panic("Not copy-on-write!");
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
@@ -33,8 +36,14 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+	if(sys_page_alloc(0, PFTEMP, PTE_U | PTE_W | PTE_P) < 0)
+		panic("sys_page_alloc()!");
+	void * old_page = ROUNDDOWN(addr, PGSIZE);
+	memmove(PFTEMP, old_page, PGSIZE);
+	if(sys_page_map(0, PFTEMP, 0, old_page, PTE_P | PTE_U | PTE_W) < 0)
+		panic("sys_page_map()!");
+	if(sys_page_unmap(0, PFTEMP) < 0)
+		panic("sys_page_unmap()!");
 }
 
 //
@@ -54,7 +63,13 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	void * addr = (void *) (pn * PGSIZE);
+	if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
+	if(sys_page_map(0, addr, envid, addr, PTE_P | PTE_U | PTE_COW) < 0)
+		panic("sys_page_map()!");
+	if(sys_page_map(0, addr, 0, addr, PTE_P | PTE_U | PTE_COW) < 0)
+		panic("sys_page_map()!");
+	}
 	return 0;
 }
 
@@ -78,7 +93,25 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	set_pgfault_handler(pgfault);
+	envid_t child_id = sys_exofork();
+	if(child_id < 0)
+		return child_id;
+	if(child_id == 0) {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	for(uint32_t va = 0; va < UTOP - PGSIZE; va+=PGSIZE) {
+		if((uvpd[PDX(va)] & PTE_P) == PTE_P && (uvpt[PGNUM(va)] & PTE_P) == PTE_P)
+			duppage(child_id, (unsigned int) PGNUM(va));
+	}
+	if(sys_page_alloc(child_id, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W) < 0)
+		panic("sys_page_alloc()!");
+	if(sys_env_set_pgfault_upcall(child_id, thisenv->env_pgfault_upcall) < 0)
+		panic("sys_set_pgfault_upcall()!");
+	if(sys_env_set_status(child_id, ENV_RUNNABLE) < 0)
+		panic("sys_env_set_status()!");
+	return child_id;
 }
 
 // Challenge!
