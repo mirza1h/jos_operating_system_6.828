@@ -294,7 +294,7 @@ sys_page_unmap(envid_t envid, void *va)
 //		(No need to check permissions.)
 //	-E_IPC_NOT_RECV if envid is not currently blocked in sys_ipc_recv,
 //		or another environment managed to send first.
-//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
+//	-E_INVAL if srcva < UTOP but srcva is not page-aligne.
 //	-E_INVAL if srcva < UTOP and perm is inappropriate
 //		(see sys_page_alloc).
 //	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
@@ -307,7 +307,34 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	struct Env * e;
+	if(envid2env(envid, &e, 0) < 0)
+		return -E_BAD_ENV;
+	if(e->env_ipc_recving == false)
+		return -E_IPC_NOT_RECV;
+	e->env_ipc_perm = 0;
+	if( (uint32_t)srcva < UTOP && (uint32_t)e->env_ipc_dstva < UTOP ) {
+    pte_t * pte;
+		struct PageInfo * page = page_lookup(curenv->env_pgdir, srcva, &pte);
+		if(!page)
+			return -E_INVAL;
+		uint32_t align = ROUNDUP((uint32_t)srcva, PGSIZE);
+		if((uint32_t)srcva < UTOP && ((uint32_t)srcva != align))
+			return -E_INVAL;
+		if((uint32_t)srcva < UTOP && ((perm & ~PTE_SYSCALL) != 0))
+			return -E_INVAL;
+		if((perm & PTE_W) && ((*pte & PTE_W) == 0))
+			return -E_INVAL;
+    if(page_insert(e->env_pgdir , page ,e->env_ipc_dstva , perm )) 
+			return -E_NO_MEM;
+   	e->env_ipc_perm = perm;
+  }
+	e->env_ipc_recving = false;
+	e->env_ipc_from = curenv->env_id;
+	e->env_ipc_value = value;
+	e->env_tf.tf_regs.reg_eax = 0;
+	e->env_status = ENV_RUNNABLE;
+	return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -325,7 +352,13 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	uint32_t align = ROUNDUP((uint32_t)dstva, PGSIZE);
+	if((uint32_t)dstva < UTOP && (uint32_t)dstva != align)
+		return -E_INVAL;
+	curenv->env_ipc_recving = true;
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	sched_yield();
 	return 0;
 }
 
@@ -370,6 +403,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return ret;
 		case SYS_env_set_pgfault_upcall:
 			ret = sys_env_set_pgfault_upcall(a1, (void *)a2);
+			return ret;
+		case SYS_ipc_try_send:
+			ret = sys_ipc_try_send(a1, a2, (void*) a3, a4);
+			return ret;
+		case SYS_ipc_recv:
+			ret = sys_ipc_recv((void*) a1);
 			return ret;
 		default:
 			panic("syscall not implemented");
