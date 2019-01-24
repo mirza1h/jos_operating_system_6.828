@@ -70,6 +70,8 @@ duppage(envid_t envid, unsigned pn)
 	if(sys_page_map(0, addr, 0, addr, PTE_P | PTE_U | PTE_COW) < 0)
 		panic("sys_page_map()!");
 	}
+	else if(sys_page_map(0, addr, envid, addr, PTE_P | PTE_U) < 0)
+		panic("sys_page_map()!");
 	return 0;
 }
 

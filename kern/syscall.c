@@ -85,7 +85,7 @@ sys_exofork(void)
 
 	// LAB 4: Your code here.
 	struct Env * e;
-	if(env_alloc(&e, curenv->env_id) < 0 )
+	if(env_alloc(&e, curenv->env_id) < 0)
 		return -E_NO_FREE_ENV;
 	e->env_status = ENV_NOT_RUNNABLE;
 	e->env_tf = curenv->env_tf;
@@ -203,8 +203,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 //		address space.
 //	-E_NO_MEM if there's no memory to allocate any necessary page tables.
 static int
-sys_page_map(envid_t srcenvid, void *srcva,
-	     envid_t dstenvid, void *dstva, int perm)
+sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int perm)
 {
 	// Hint: This function is a wrapper around page_lookup() and
 	//   page_insert() from kern/pmap.c.
