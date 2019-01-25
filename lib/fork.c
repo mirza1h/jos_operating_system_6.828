@@ -103,8 +103,10 @@ fork(void)
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
-	for(uint32_t va = 0; va < UTOP - PGSIZE; va+=PGSIZE) {
-		if((uvpd[PDX(va)] & PTE_P) == PTE_P && (uvpt[PGNUM(va)] & PTE_P) == PTE_P)
+	uint32_t va = 0;
+	uint32_t end = UTOP - PGSIZE;
+	for(; va < end; va+=PGSIZE) {
+		if((uvpd[PDX(va)] & (PTE_P | PTE_U)) && (uvpt[PGNUM(va)] & (PTE_P | PTE_U)))
 			duppage(child_id, (unsigned int) PGNUM(va));
 	}
 	if(sys_page_alloc(child_id, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W) < 0)
