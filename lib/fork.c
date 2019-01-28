@@ -27,7 +27,7 @@ pgfault(struct UTrapframe *utf)
 	// LAB 4: Your code here.
 	if(!(err & FEC_WR))
 		panic("Not a write!");
-	if(!(uvpt[PGNUM(addr)] & PTE_COW))
+	if(!(uvpt[PGNUM(addr)] & (PTE_COW | PTE_P | PTE_U)))
 		panic("Not copy-on-write!");
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -36,9 +36,9 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	void * old_page = ROUNDDOWN(addr, PGSIZE);
 	if(sys_page_alloc(0, PFTEMP, PTE_U | PTE_W | PTE_P) < 0)
 		panic("sys_page_alloc()!");
-	void * old_page = ROUNDDOWN(addr, PGSIZE);
 	memmove(PFTEMP, old_page, PGSIZE);
 	if(sys_page_map(0, PFTEMP, 0, old_page, PTE_P | PTE_U | PTE_W) < 0)
 		panic("sys_page_map()!");
@@ -60,8 +60,6 @@ pgfault(struct UTrapframe *utf)
 static int
 duppage(envid_t envid, unsigned pn)
 {
-	int r;
-
 	// LAB 4: Your code here.
 	void * addr = (void *) (pn * PGSIZE);
 	if((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {

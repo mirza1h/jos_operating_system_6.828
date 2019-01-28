@@ -312,7 +312,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if(e->env_ipc_recving == false)
 		return -E_IPC_NOT_RECV;
 	e->env_ipc_perm = 0;
-	if( (uint32_t)srcva < UTOP && (uint32_t)e->env_ipc_dstva < UTOP ) {
+	if((uint32_t)srcva < UTOP && (uint32_t)e->env_ipc_dstva < UTOP) {
     pte_t * pte;
 		struct PageInfo * page = page_lookup(curenv->env_pgdir, srcva, &pte);
 		if(!page)
@@ -324,7 +324,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 		if((perm & PTE_W) && ((*pte & PTE_W) == 0))
 			return -E_INVAL;
-    if(page_insert(e->env_pgdir , page ,e->env_ipc_dstva , perm )) 
+    if(page_insert(e->env_pgdir , page ,e->env_ipc_dstva , perm)) 
 			return -E_NO_MEM;
    	e->env_ipc_perm = perm;
   }
